@@ -20,7 +20,7 @@ class MainWindow(QWidget):
         self.widgetSvg.setGeometry(0, 0, 800, 800)
 
         self.chessboard = chess.Board()
-        self.turn = 0 #random.randint(0,1) == 1
+        self.turn = random.randint(0,1) == 1
 
     def loop(self):
         strike = 0
