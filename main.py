@@ -1,65 +1,84 @@
-import chess
-import chess.svg
-import chess.engine
-import random
-import os
+#!/usr/bin/env python
+# pylint: disable=unused-argument, wrong-import-position
+# This program is dedicated to the public domain under the CC0 license.
 
-from PyQt5.QtSvg import QSvgWidget
-from PyQt5.QtWidgets import QApplication, QWidget
+"""
+Simple Bot to reply to Telegram messages.
+First, a few handler functions are defined. Then, those functions are passed to
+the Application and registered at their respective places.
+Then, the bot is started and runs until we press Ctrl-C on the command line.
+Usage:
+Basic Echobot example, repeats messages.
+Press Ctrl-C on the command line or send a signal to the process to stop the
+bot.
+"""
+from config import *
+import logging
 
-engine = chess.engine.SimpleEngine.popen_uci("/usr/games/stockfish")
-engine.configure({"Skill Level":1})
-engine.configure({"Skill Level":3})
+from telegram import __version__ as TG_VER
 
-class MainWindow(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setGeometry(100, 100, 800, 800)
+try:
+    from telegram import __version_info__
+except ImportError:
+    __version_info__ = (0, 0, 0, 0, 0)  # type: ignore[assignment]
 
-        self.widgetSvg = QSvgWidget(parent=self)
-        self.widgetSvg.setGeometry(0, 0, 800, 800)
+if __version_info__ < (20, 0, 0, "alpha", 1):
+    raise RuntimeError(
+        f"This example is not compatible with your current PTB version {TG_VER}. To view the "
+        f"{TG_VER} version of this example, "
+        f"visit https://github.com/python-telegram-bot/python-telegram-bot/tree/v{TG_VER}/examples"
+    )
+from telegram import ForceReply, Update
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
-        self.chessboard = chess.Board()
-        self.turn = random.randint(0,1) == 1
+# Enable logging
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
-    def loop(self):
-        strike = 0
-        a = os.system('clear')
-        while not self.chessboard.is_game_over() and strike < 5:
-            if self.chessboard.turn == self.turn:
-                result = engine.play(self.chessboard, chess.engine.Limit(time=0.1))
-                print(self.chessboard.san(result.move))
-                self.chessboard.push(result.move)
-            else:
-                move = ''
-                while move == '' and strike < 5:
-                    try:
-                        move = input("Your move: ")
-                        self.chessboard.push_san(move)
-                    except:
-                        if move == "show":
-                            self.see()
-                            self.show()
-                        elif move == "cls":
-                            a = os.system('clear')
-                        else:
-                            strike += 1
-                            print("non valid move")
-                        move = ''
-                a = os.system('clear')
-        print("game over")
-        print(str(self.chessboard.halfmove_clock)+" moves")
-        self.see()
-        self.show()
+# -------------------------------------------------------------------------------
 
-    def see(self):
-        self.chessboardSvg = chess.svg.board(self.chessboard).encode("UTF-8")
-        self.widgetSvg.load(self.chessboardSvg)
+
+
+# -------------------------------------------------------------------------------
+
+# Define a few command handlers. These usually take the two arguments update and
+# context.
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a message when the command /start is issued."""
+    user = update.effective_user
+    await update.message.reply_html(
+        rf"Hi {user.mention_html()}!",
+        reply_markup=ForceReply(selective=True),
+    )
+
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a message when the command /help is issued."""
+    await update.message.reply_text("Help!")
+
+
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Echo the user message."""
+    await update.message.reply_text(update.message.text)
+
+
+def main() -> None:
+    """Start the bot."""
+    # Create the Application and pass it your bot's token.
+    application = Application.builder().token(bot_token).build()
+
+    # on different commands - answer in Telegram
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+
+    # on non command i.e message - echo the message on Telegram
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+
+    # Run the bot until the user presses Ctrl-C
+    application.run_polling()
+
 
 if __name__ == "__main__":
-    app = QApplication([])
-    window = MainWindow()
-    window.loop()
-    input("close")
-    window.close()
-    #app.exec()
+    main()
