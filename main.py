@@ -1,84 +1,61 @@
-#!/usr/bin/env python
-# pylint: disable=unused-argument, wrong-import-position
-# This program is dedicated to the public domain under the CC0 license.
+from email import message
+import telebot
+import chess
+import requests
+import urllib
 
-"""
-Simple Bot to reply to Telegram messages.
-First, a few handler functions are defined. Then, those functions are passed to
-the Application and registered at their respective places.
-Then, the bot is started and runs until we press Ctrl-C on the command line.
-Usage:
-Basic Echobot example, repeats messages.
-Press Ctrl-C on the command line or send a signal to the process to stop the
-bot.
-"""
-from config import *
-import logging
+bot = telebot.TeleBot("5382490304:AAHAVgrcmrKFoSx2pNrjVpsAYF8aeQlz-Bc")
 
-from telegram import __version__ as TG_VER
+games = {}
 
-try:
-    from telegram import __version_info__
-except ImportError:
-    __version_info__ = (0, 0, 0, 0, 0)  # type: ignore[assignment]
+def who_to_play(bool):
+    if bool:
+        return "White to play"
+    else:
+        return "Black to play"
 
-if __version_info__ < (20, 0, 0, "alpha", 1):
-    raise RuntimeError(
-        f"This example is not compatible with your current PTB version {TG_VER}. To view the "
-        f"{TG_VER} version of this example, "
-        f"visit https://github.com/python-telegram-bot/python-telegram-bot/tree/v{TG_VER}/examples"
-    )
-from telegram import ForceReply, Update
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+	bot.reply_to(message, "Type /help for command list")
 
-# Enable logging
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-logger = logging.getLogger(__name__)
+@bot.message_handler(commands=['help'])
+def send_welcome(message):
+	bot.reply_to(message,"""
+/startgame - to start a new game
+/stopgame - to end current game
+/mistakes - to list errors for players
+""")
 
-# -------------------------------------------------------------------------------
+@bot.message_handler(commands=['startgame'])
+def start_game(message):
+    try:
+        games[message.chat.id] = chess.Board()
+        bot.reply_to(message, "Game Started\n" + who_to_play(games[message.chat.id].turn))
+    except Exception as e:
+        print(e)
 
-
-
-# -------------------------------------------------------------------------------
-
-# Define a few command handlers. These usually take the two arguments update and
-# context.
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a message when the command /start is issued."""
-    user = update.effective_user
-    await update.message.reply_html(
-        rf"Hi {user.mention_html()}!",
-        reply_markup=ForceReply(selective=True),
-    )
+@bot.message_handler(commands=['show'])
+def start_game(message):
+    try:
+        # make work with png
+        #url = "https://fen2png.com/api/?fen=" + urllib.parse.quote(games[message.chat.id].fen())
+        url = "http://www.fen-to-image.com/image/" + games[message.chat.id].fen()[0:-13]
+        bot.send_photo(message.chat.id, url)
+    except Exception as e:
+        print(e)
 
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a message when the command /help is issued."""
-    await update.message.reply_text("Help!")
+@bot.message_handler(func=lambda message: True)
+def try_move(message):
+    try:
+        games[message.chat.id].push_san(message.text)
+    except Exception as e:
+        bot.reply_to(message, e)
+    finally:
+        if games[message.chat.id].is_game_over():
+            bot.reply_to(message, "Game Over")
+        else:
+            bot.reply_to(message, who_to_play(games[message.chat.id].turn))
 
 
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Echo the user message."""
-    await update.message.reply_text(update.message.text)
-
-
-def main() -> None:
-    """Start the bot."""
-    # Create the Application and pass it your bot's token.
-    application = Application.builder().token(bot_token).build()
-
-    # on different commands - answer in Telegram
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-
-    # on non command i.e message - echo the message on Telegram
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
-
-    # Run the bot until the user presses Ctrl-C
-    application.run_polling()
-
-
-if __name__ == "__main__":
-    main()
+bot.infinity_polling()

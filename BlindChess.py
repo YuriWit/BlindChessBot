@@ -1,14 +1,4 @@
 import chess
-import chess.engine
-import random
-
-# set engine
-engine = chess.engine.SimpleEngine.popen_uci("/usr/games/stockfish")
-
-engine.configure({"Skill Level":1})
-
-
-board.is_game_over()
 
 class BlindChessGame:
     def __init__(self):
@@ -35,8 +25,15 @@ class BlindChessGame:
     def sanMove(self, san):
         try:
             self.board.push_san(san)
+            self.trun = 1 if self.turn == 0 else 0
+            return True
         except ValueError as e:
-                
-
+            print(e)
+            if "illegal san" in str(e):
+                self.player_err[self.turn] += 1
+            return False
+    
+    def getTurn(self):
+        return "Black to play" if self.turn == 1 else "White to play"
     
 
