@@ -1,15 +1,14 @@
-from email import message
 import telebot
-import chess
-import chess.engine
-import requests
-import urllib
+import chess.engine, chess
 
 bot = telebot.TeleBot("5382490304:AAHAVgrcmrKFoSx2pNrjVpsAYF8aeQlz-Bc")
+
 engine = chess.engine.SimpleEngine.popen_uci("/app/stockfish")
 engine.configure({"Skill Level":1})
+
 games = {}
 ai = {}
+
 def who_to_play(bool):
     if bool:
         return "White to play"
