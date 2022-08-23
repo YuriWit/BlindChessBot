@@ -5,7 +5,7 @@ COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 COPY . .
 
-CMD ["apt-get -y install stockfish"]
-
-CMD [ "python3", "./main.py"]
+RUN apt-get update
+RUN apt-get -y install stockfish
+CMD python3 ./app.py ${BOT_TOKEN:?no BOT_TOKEN}
 
